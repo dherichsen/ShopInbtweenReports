@@ -70,37 +70,40 @@ function App() {
     }
   };
 
-  const handleGenerateReport = async () => {
-    console.log("🔵 [FRONTEND] Generate Report button clicked");
+  const handleGenerateReport = async (reportType = "standard") => {
+    const reportTypeLabel = reportType === "qb" ? "QB Report" : "Report";
+    console.log(`🔵 [FRONTEND] Generate ${reportTypeLabel} button clicked`);
     console.log("🔵 [FRONTEND] Form data:", {
       startDate: startDate.toISOString().split("T")[0],
       endDate: endDate.toISOString().split("T")[0],
       financialStatus,
       fulfillmentStatus,
+      reportType,
     });
     
     setIsGenerating(true);
     setError(null);
 
     try {
-      console.log("🔵 [FRONTEND] Sending POST request to /api/report-jobs");
+      console.log(`🔵 [FRONTEND] Sending POST request to /api/report-jobs`);
       const requestData = {
         startDate: startDate.toISOString().split("T")[0],
         endDate: endDate.toISOString().split("T")[0],
         financialStatus,
         fulfillmentStatus,
+        reportType,
       };
       console.log("🔵 [FRONTEND] Request payload:", JSON.stringify(requestData));
       
       const response = await axios.post("/api/report-jobs", requestData);
       
-      console.log("✅ [FRONTEND] POST request successful!");
+      console.log(`✅ [FRONTEND] POST request successful!`);
       console.log("✅ [FRONTEND] Response status:", response.status);
       console.log("✅ [FRONTEND] Response data:", response.data);
       
       await loadJobs();
     } catch (err) {
-      console.error("❌ [FRONTEND] Error creating report:");
+      console.error(`❌ [FRONTEND] Error creating ${reportTypeLabel}:`);
       console.error("❌ [FRONTEND] Error object:", err);
       console.error("❌ [FRONTEND] Error message:", err.message);
       console.error("❌ [FRONTEND] Error response:", err.response);
@@ -108,7 +111,7 @@ function App() {
       console.error("❌ [FRONTEND] Error response data:", err.response?.data);
       console.error("❌ [FRONTEND] Error response headers:", err.response?.headers);
       
-      const errorMessage = err.response?.data?.error || err.message || "Failed to generate report";
+      const errorMessage = err.response?.data?.error || err.message || `Failed to generate ${reportTypeLabel}`;
       console.error("❌ [FRONTEND] Setting error message:", errorMessage);
       setError(errorMessage);
     } finally {
@@ -126,7 +129,15 @@ function App() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `report-${jobId}.${format}`);
+      const params = JSON.parse(jobs.find(j => j.id === jobId)?.paramsJson || "{}");
+      const reportType = params.reportType || "standard";
+      let filename = `report-${jobId}.${format}`;
+      if (reportType === "qb") {
+        filename = `qb-report-${jobId}.${format}`;
+      } else if (reportType === "internal_vendors") {
+        filename = `internal-vendors-report-${jobId}.${format}`;
+      }
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -147,18 +158,49 @@ function App() {
 
   const jobsTableRows = jobs.map((job) => {
     const params = JSON.parse(job.paramsJson);
+    const reportTypeParam = params.reportType || "standard";
+    let reportType = "Standard";
+    if (reportTypeParam === "qb") {
+      reportType = "Quickbooks";
+    } else if (reportTypeParam === "internal_vendors") {
+      reportType = "Internal Vendors";
+    }
+    const isQbReport = reportTypeParam === "qb";
     return [
       new Date(job.createdAt).toLocaleString(),
       `${params.startDate} to ${params.endDate}`,
+      reportType,
       getStatusBadge(job.status),
       job.status === "COMPLETE" ? (
         <div style={{ display: "flex", gap: "8px" }}>
-          <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
-            CSV
-          </Button>
-          <Button size="slim" onClick={() => handleDownload(job.id, "pdf")}>
-            PDF
-          </Button>
+          {reportTypeParam === "internal_vendors" ? (
+            <>
+              <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
+                CSV
+              </Button>
+              <Button size="slim" onClick={() => handleDownload(job.id, "xlsx")}>
+                XLSX
+              </Button>
+            </>
+          ) : isQbReport ? (
+            <>
+              <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
+                CSV
+              </Button>
+              <Button size="slim" onClick={() => handleDownload(job.id, "xlsx")}>
+                XLSX
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
+                CSV
+              </Button>
+              <Button size="slim" onClick={() => handleDownload(job.id, "pdf")}>
+                PDF
+              </Button>
+            </>
+          )}
         </div>
       ) : job.status === "FAILED" ? (
         <span style={{ color: "red", fontSize: "12px" }}>{job.errorMessage}</span>
@@ -233,14 +275,32 @@ function App() {
               />
             </div>
 
-            <Button
-              primary
-              onClick={handleGenerateReport}
-              loading={isGenerating}
-              disabled={isGenerating}
-            >
-              Generate Report
-            </Button>
+            <div style={{ display: "flex", gap: "12px" }}>
+              {false && (
+                <Button
+                  primary
+                  onClick={() => handleGenerateReport("standard")}
+                  loading={isGenerating}
+                  disabled={isGenerating}
+                >
+                  Generate Report
+                </Button>
+              )}
+              <Button
+                onClick={() => handleGenerateReport("qb")}
+                loading={isGenerating}
+                disabled={isGenerating}
+              >
+                QB Report
+              </Button>
+              <Button
+                onClick={() => handleGenerateReport("internal_vendors")}
+                loading={isGenerating}
+                disabled={isGenerating}
+              >
+                Internal Vendors
+              </Button>
+            </div>
           </Card>
         </Layout.Section>
 
@@ -260,8 +320,8 @@ function App() {
                 </EmptyState>
               ) : (
                 <DataTable
-                  columnContentTypes={["text", "text", "text", "text"]}
-                  headings={["Created", "Date Range", "Status", "Actions"]}
+                  columnContentTypes={["text", "text", "text", "text", "text"]}
+                  headings={["Created", "Date Range", "Report Type", "Status", "Actions"]}
                   rows={jobsTableRows}
                 />
               )}

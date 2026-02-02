@@ -46,6 +46,7 @@ model ReportJob {
   paramsJson  String      @db.Text @map("params_json")
   csvPath     String?     @map("csv_path")
   pdfPath     String?     @map("pdf_path")
+  xlsxPath    String?     @map("xlsx_path")
   errorMessage String?    @db.Text @map("error_message")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")

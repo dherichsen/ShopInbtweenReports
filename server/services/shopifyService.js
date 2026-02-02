@@ -21,6 +21,19 @@ const ORDERS_QUERY = `
           currencyCode
           displayFinancialStatus
           displayFulfillmentStatus
+          customer {
+            displayName
+            email
+          }
+          shippingAddress {
+            name
+            address1
+            address2
+            city
+            province
+            zip
+            country
+          }
           lineItems(first: 250) {
             edges {
               node {
@@ -29,6 +42,7 @@ const ORDERS_QUERY = `
                 variantTitle
                 sku
                 quantity
+                vendor
                 originalUnitPriceSet {
                   shopMoney {
                     amount
@@ -61,7 +75,7 @@ async function fetchOrders(accessToken, shopDomain, startDate, endDate, financia
   const shopify = shopifyApi({
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecretKey: process.env.SHOPIFY_API_SECRET,
-    scopes: process.env.SCOPES?.split(",") || ["read_orders", "read_products"],
+    scopes: process.env.SCOPES?.split(",") || ["read_orders", "read_products", "read_customers"],
     hostName: process.env.SHOPIFY_APP_URL?.replace(/https?:\/\//, "") || "localhost:3000",
     apiVersion: LATEST_API_VERSION,
     isEmbeddedApp: true,
@@ -157,6 +171,7 @@ async function fetchOrders(accessToken, shopDomain, startDate, endDate, financia
         const orderNodes = orders.edges.map(edge => edge.node);
         console.log(`✅ ORDERS - Adding ${orderNodes.length} orders to results`);
         console.log(`✅ ORDERS - First order sample:`, JSON.stringify(orderNodes[0], null, 2));
+        console.log(`✅ ORDERS - First order shippingAddress:`, JSON.stringify(orderNodes[0]?.shippingAddress, null, 2));
         allOrders.push(...orderNodes);
       } else {
         console.log(`⚠️ ORDERS - No orders in edges array`);

@@ -9,36 +9,42 @@
     "dev:client": "cd client && npm run dev",
     "dev:worker": "nodemon server/workers/start-worker.js",
     "build": "cd client && npm run build",
+    "postinstall": "npm run prisma:generate && npm run build",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "start": "node server/index.js",
+    "start": "npm run prisma:migrate && node server/index.js",
     "worker": "node server/workers/start-worker.js",
     "check-setup": "node scripts/check-setup.js"
   },
-  "keywords": ["shopify", "embedded-app", "reports"],
+  "keywords": [
+    "shopify",
+    "embedded-app",
+    "reports"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "^5.7.1",
     "@shopify/shopify-api": "^11.0.0",
     "@shopify/shopify-app-express": "^3.0.0",
     "@shopify/shopify-app-session-storage-prisma": "^1.0.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "@prisma/client": "^5.7.1",
     "bullmq": "^5.3.0",
-    "ioredis": "^5.3.2",
+    "cors": "^2.8.5",
     "csv-writer": "^1.6.0",
-    "playwright": "^1.40.1",
-    "uuid": "^9.0.1",
+    "dotenv": "^16.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "fs-extra": "^11.2.0",
+    "ioredis": "^5.3.2",
     "path": "^0.12.7",
-    "fs-extra": "^11.2.0"
+    "playwright": "^1.40.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "nodemon": "^3.0.2",
-    "prisma": "^5.7.1",
-    "concurrently": "^8.2.2"
+    "prisma": "^5.7.1"
   }
 }
-

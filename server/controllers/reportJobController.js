@@ -24,9 +24,9 @@ async function create(req, res) {
   console.log(`🟣 [CONTROLLER] req.shopifySession:`, req.shopifySession ? { shop: req.shopifySession.shop } : "MISSING");
   
   try {
-    const { startDate, endDate, financialStatus, fulfillmentStatus } = req.body;
+    const { startDate, endDate, financialStatus, fulfillmentStatus, reportType } = req.body;
     
-    console.log(`🟣 [CONTROLLER] Parsed params:`, { startDate, endDate, financialStatus, fulfillmentStatus });
+    console.log(`🟣 [CONTROLLER] Parsed params:`, { startDate, endDate, financialStatus, fulfillmentStatus, reportType });
     
     if (!req.shop || !req.shop.id) {
       console.error(`❌ [CONTROLLER] Missing shop in request!`);
@@ -53,6 +53,7 @@ async function create(req, res) {
           endDate,
           financialStatus: financialStatus || ["paid", "partially_paid"],
           fulfillmentStatus: fulfillmentStatus || null,
+          reportType: reportType || "standard", // "standard" or "qb"
         }),
       },
     });
@@ -68,6 +69,7 @@ async function create(req, res) {
         endDate,
         financialStatus: financialStatus || ["paid", "partially_paid"],
         fulfillmentStatus: fulfillmentStatus || null,
+        reportType: reportType || "standard",
       },
     });
     console.log(`✅ [CONTROLLER] Job added to queue`);
@@ -169,7 +171,17 @@ async function downloadCsv(req, res) {
       return res.status(404).json({ error: "CSV file not found" });
     }
 
-    res.download(filePath, `report-${id}.csv`, (err) => {
+    // Determine filename based on report type
+    const params = JSON.parse(job.paramsJson);
+    const reportType = params.reportType || "standard";
+    let filename = `report-${id}.csv`;
+    if (reportType === "qb") {
+      filename = `qb-report-${id}.csv`;
+    } else if (reportType === "internal_vendors") {
+      filename = `internal-vendors-report-${id}.csv`;
+    }
+
+    res.download(filePath, filename, (err) => {
       if (err) {
         console.error("Error downloading CSV:", err);
         res.status(500).json({ error: "Failed to download CSV" });
@@ -223,11 +235,64 @@ async function downloadPdf(req, res) {
   }
 }
 
+/**
+ * Download XLSX file
+ */
+async function downloadXlsx(req, res) {
+  try {
+    const { id } = req.params;
+    const shopId = req.shop.id;
+
+    const job = await prisma.reportJob.findUnique({
+      where: { id },
+    });
+
+    if (!job) {
+      return res.status(404).json({ error: "Report job not found" });
+    }
+
+    if (job.shopId !== shopId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (job.status !== "COMPLETE" || !job.xlsxPath) {
+      return res.status(400).json({ error: "Report not ready or XLSX not generated" });
+    }
+
+    const filePath = path.join(__dirname, "../../", job.xlsxPath);
+    
+    if (!(await fs.pathExists(filePath))) {
+      return res.status(404).json({ error: "XLSX file not found" });
+    }
+
+    // Determine filename based on report type
+    const params = JSON.parse(job.paramsJson);
+    const reportType = params.reportType || "standard";
+    let filename = `report-${id}.xlsx`;
+    if (reportType === "qb") {
+      filename = `qb-report-${id}.xlsx`;
+    } else if (reportType === "internal_vendors") {
+      filename = `internal-vendors-report-${id}.xlsx`;
+    }
+
+    res.download(filePath, filename, (err) => {
+      if (err) {
+        console.error("Error downloading XLSX:", err);
+        res.status(500).json({ error: "Failed to download XLSX" });
+      }
+    });
+  } catch (error) {
+    console.error("Error downloading XLSX:", error);
+    res.status(500).json({ error: "Failed to download XLSX" });
+  }
+}
+
 module.exports = {
   create,
   list,
   get,
   downloadCsv,
   downloadPdf,
+  downloadXlsx,
 };
 

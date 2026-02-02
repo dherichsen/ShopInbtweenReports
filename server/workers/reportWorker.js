@@ -6,7 +6,7 @@ const Redis = require("ioredis");
 const { PrismaClient } = require("@prisma/client");
 const path = require("path");
 const { fetchOrders } = require("../services/shopifyService");
-const { generateCsv } = require("../services/csvGenerator");
+const { generateCsv, generateQbCsv, generateQbXlsx, generateInternalVendorsCsv, generateInternalVendorsXlsx } = require("../services/csvGenerator");
 const { generatePdf } = require("../services/pdfGenerator");
 
 const prisma = new PrismaClient();
@@ -21,7 +21,7 @@ const worker = new Worker(
   "report-generation",
   async (job) => {
     const { jobId, shopId, params } = job.data;
-    const { startDate, endDate, financialStatus, fulfillmentStatus } = params;
+    const { startDate, endDate, financialStatus, fulfillmentStatus, reportType } = params;
 
     try {
       // Update job status to RUNNING
@@ -73,17 +73,48 @@ const worker = new Worker(
       const reportsDir = path.join(__dirname, "../../reports");
       await require("fs-extra").ensureDir(reportsDir);
 
-      // Generate CSV
-      console.log("Generating CSV...");
-      const csvPath = path.join(reportsDir, `${jobId}.csv`);
-      await generateCsv(orders, csvPath);
-      const relativeCsvPath = `reports/${jobId}.csv`;
-
-      // Generate PDF
-      console.log("Generating PDF...");
-      const pdfPath = path.join(reportsDir, `${jobId}.pdf`);
-      await generatePdf(orders, shop.shopDomain, startDate, endDate, pdfPath);
-      const relativePdfPath = `reports/${jobId}.pdf`;
+      // Generate reports based on report type
+      const isQbReport = reportType === "qb";
+      const isInternalVendorsReport = reportType === "internal_vendors";
+      
+      let relativeCsvPath = null;
+      let relativeXlsxPath = null;
+      let relativePdfPath = null;
+      
+      if (isQbReport) {
+        // QB Report: CSV + XLSX
+        console.log("Generating QB CSV...");
+        const csvPath = path.join(reportsDir, `${jobId}.csv`);
+        await generateQbCsv(orders, csvPath);
+        relativeCsvPath = `reports/${jobId}.csv`;
+        
+        console.log("Generating QB XLSX...");
+        const xlsxPath = path.join(reportsDir, `${jobId}.xlsx`);
+        await generateQbXlsx(orders, xlsxPath);
+        relativeXlsxPath = `reports/${jobId}.xlsx`;
+      } else if (isInternalVendorsReport) {
+        // Internal Vendors: CSV + XLSX
+        console.log("Generating Internal Vendors CSV...");
+        const csvPath = path.join(reportsDir, `${jobId}.csv`);
+        await generateInternalVendorsCsv(orders, csvPath);
+        relativeCsvPath = `reports/${jobId}.csv`;
+        
+        console.log("Generating Internal Vendors XLSX...");
+        const xlsxPath = path.join(reportsDir, `${jobId}.xlsx`);
+        await generateInternalVendorsXlsx(orders, xlsxPath);
+        relativeXlsxPath = `reports/${jobId}.xlsx`;
+      } else {
+        // Standard Report: CSV + PDF
+        console.log("Generating standard CSV...");
+        const csvPath = path.join(reportsDir, `${jobId}.csv`);
+        await generateCsv(orders, csvPath);
+        relativeCsvPath = `reports/${jobId}.csv`;
+        
+        console.log("Generating PDF...");
+        const pdfPath = path.join(reportsDir, `${jobId}.pdf`);
+        await generatePdf(orders, shop.shopDomain, startDate, endDate, pdfPath);
+        relativePdfPath = `reports/${jobId}.pdf`;
+      }
 
       // Update job status to COMPLETE
       await prisma.reportJob.update({
@@ -92,6 +123,7 @@ const worker = new Worker(
           status: "COMPLETE",
           csvPath: relativeCsvPath,
           pdfPath: relativePdfPath,
+          xlsxPath: relativeXlsxPath,
         },
       });
 

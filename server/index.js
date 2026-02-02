@@ -40,7 +40,7 @@ if (!hostName) {
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes: process.env.SCOPES?.split(",") || ["read_orders", "read_products"],
+  scopes: process.env.SCOPES?.split(",") || ["read_orders", "read_products", "read_customers"],
   hostName: hostName,
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: true,
@@ -52,7 +52,7 @@ const shopifyAppMiddleware = shopifyApp({
   api: {
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecretKey: process.env.SHOPIFY_API_SECRET,
-    scopes: process.env.SCOPES?.split(",") || ["read_orders", "read_products"],
+    scopes: process.env.SCOPES?.split(",") || ["read_orders", "read_products", "read_customers"],
     hostName: hostName,
     apiVersion: LATEST_API_VERSION,
     isEmbeddedApp: true,

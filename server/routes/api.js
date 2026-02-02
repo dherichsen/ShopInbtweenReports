@@ -12,6 +12,7 @@ router.get("/report-jobs", authenticate, reportJobController.list);
 router.get("/report-jobs/:id", authenticate, reportJobController.get);
 router.get("/report-jobs/:id/download.csv", authenticate, reportJobController.downloadCsv);
 router.get("/report-jobs/:id/download.pdf", authenticate, reportJobController.downloadPdf);
+router.get("/report-jobs/:id/download.xlsx", authenticate, reportJobController.downloadXlsx);
 
 module.exports = router;
 
