@@ -60,8 +60,10 @@ const shopifyAppMiddleware = shopifyApp({
     callbackPath: "/auth/callback",
   },
   webhooks: {
-    // Disable automatic webhook registration since we don't use webhooks
+    path: "/webhooks",
   },
+  // Disable webhook registration completely
+  useOnlineTokens: false,
 });
 
 const expressApp = express();
