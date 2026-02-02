@@ -9,7 +9,7 @@
     "dev:client": "cd client && npm run dev",
     "dev:worker": "nodemon server/workers/start-worker.js",
     "build": "cd client && npm run build",
-    "postinstall": "npm run prisma:generate && npm run build",
+    "postinstall": "npm run prisma:generate && cd client && npm install --legacy-peer-deps && cd .. && npm run build",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
