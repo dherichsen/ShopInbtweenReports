@@ -107,16 +107,50 @@ expressApp.use("/api", async (req, res, next) => {
     console.log(`🟢 [SERVER] Shop domain:`, shopDomain);
     console.log(`🟢 [SERVER] All headers with 'shop':`, Object.keys(req.headers).filter(k => k.toLowerCase().includes('shop')));
     
-    // Get session from database by shop domain
-    const dbSession = await prisma.session.findUnique({
+    // Debug: List all sessions in database
+    const allSessions = await prisma.session.findMany({
+      select: { shop: true, id: true, createdAt: true }
+    });
+    console.log(`🟢 [SERVER] All sessions in DB:`, allSessions);
+    console.log(`🟢 [SERVER] Looking for shop:`, shopDomain);
+    
+    // Try exact match first
+    let dbSession = await prisma.session.findUnique({
       where: { shop: shopDomain },
     });
+    
+    // If not found, try case-insensitive search
+    if (!dbSession) {
+      console.log(`🟡 [SERVER] Exact match not found, trying case-insensitive search...`);
+      dbSession = await prisma.session.findFirst({
+        where: {
+          shop: {
+            equals: shopDomain,
+            mode: 'insensitive'
+          }
+        }
+      });
+    }
+    
+    // If still not found, try without .myshopify.com
+    if (!dbSession && shopDomain.includes('.myshopify.com')) {
+      const shopWithoutDomain = shopDomain.replace('.myshopify.com', '');
+      console.log(`🟡 [SERVER] Trying without .myshopify.com:`, shopWithoutDomain);
+      dbSession = await prisma.session.findFirst({
+        where: {
+          shop: {
+            contains: shopWithoutDomain
+          }
+        }
+      });
+    }
     
     console.log(`🟢 [SERVER] Session from DB:`, dbSession ? { shop: dbSession.shop, id: dbSession.id.substring(0, 20) } : 'no session');
     
     if (!dbSession) {
       console.error(`❌ [SERVER] Session not found in database for shop:`, shopDomain);
-      return res.status(401).json({ error: "Unauthorized: Session not found. Please reinstall the app." });
+      console.error(`❌ [SERVER] Available shops in DB:`, allSessions.map(s => s.shop));
+      return res.status(401).json({ error: "Unauthorized: Session not found. Please reinstall the app.", debug: { requestedShop: shopDomain, availableShops: allSessions.map(s => s.shop) } });
     }
     
     // Convert DB session to Shopify session format
