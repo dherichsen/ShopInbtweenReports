@@ -60,6 +60,22 @@ app.use((req, res, next) => {
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
+// Reset endpoint - clears session to force reinstall
+app.get("/reset", async (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) {
+    return res.status(400).json({ error: "shop param required" });
+  }
+  
+  try {
+    await prisma.session.deleteMany({ where: { shop: { contains: shop, mode: 'insensitive' } } });
+    await prisma.shop.deleteMany({ where: { shopDomain: { contains: shop, mode: 'insensitive' } } });
+    res.json({ success: true, message: `Cleared sessions for ${shop}. Now click the install link again.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // OAuth routes
 app.get("/auth", shopify.auth.begin());
 
