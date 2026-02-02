@@ -90,22 +90,27 @@ expressApp.get("/auth", (req, res, next) => {
   shopifyAppMiddleware.auth.begin()(req, res, next);
 });
 
-expressApp.get("/auth/callback", async (req, res, next) => {
+expressApp.get("/auth/callback", (req, res, next) => {
   console.log(`🔵 [OAUTH] GET /auth/callback - OAuth callback received`);
   console.log(`🔵 [OAUTH] Query params:`, req.query);
   console.log(`🔵 [OAUTH] Cookies:`, req.cookies);
   
-  // Wrap the callback to log after it runs
   const callbackMiddleware = shopifyAppMiddleware.auth.callback();
-  await callbackMiddleware(req, res, async (err) => {
+  callbackMiddleware(req, res, (err) => {
     if (err) {
       console.error(`❌ [OAUTH] Callback error:`, err);
       return next(err);
     }
     
-    // Check if session was created
-    const allSessions = await prisma.session.findMany();
-    console.log(`🔵 [OAUTH] Sessions after callback:`, allSessions.map(s => ({ shop: s.shop, id: s.id.substring(0, 20) })));
+    // Check if session was created after a short delay
+    setTimeout(async () => {
+      try {
+        const allSessions = await prisma.session.findMany();
+        console.log(`🔵 [OAUTH] Sessions after callback:`, allSessions.map(s => ({ shop: s.shop, id: s.id.substring(0, 20) })));
+      } catch (e) {
+        console.error(`❌ [OAUTH] Error checking sessions:`, e);
+      }
+    }, 1000);
     
     if (!res.headersSent) {
       next();
@@ -113,21 +118,27 @@ expressApp.get("/auth/callback", async (req, res, next) => {
   });
 });
 
-expressApp.post("/auth/callback", async (req, res, next) => {
+expressApp.post("/auth/callback", (req, res, next) => {
   console.log(`🔵 [OAUTH] POST /auth/callback - OAuth callback received`);
   console.log(`🔵 [OAUTH] Body:`, req.body);
   console.log(`🔵 [OAUTH] Cookies:`, req.cookies);
   
   const callbackMiddleware = shopifyAppMiddleware.auth.callback();
-  await callbackMiddleware(req, res, async (err) => {
+  callbackMiddleware(req, res, (err) => {
     if (err) {
       console.error(`❌ [OAUTH] Callback error:`, err);
       return next(err);
     }
     
-    // Check if session was created
-    const allSessions = await prisma.session.findMany();
-    console.log(`🔵 [OAUTH] Sessions after callback:`, allSessions.map(s => ({ shop: s.shop, id: s.id.substring(0, 20) })));
+    // Check if session was created after a short delay
+    setTimeout(async () => {
+      try {
+        const allSessions = await prisma.session.findMany();
+        console.log(`🔵 [OAUTH] Sessions after callback:`, allSessions.map(s => ({ shop: s.shop, id: s.id.substring(0, 20) })));
+      } catch (e) {
+        console.error(`❌ [OAUTH] Error checking sessions:`, e);
+      }
+    }, 1000);
     
     if (!res.headersSent) {
       next();
