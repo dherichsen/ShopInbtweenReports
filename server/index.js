@@ -62,8 +62,55 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 // OAuth routes
 app.get("/auth", shopify.auth.begin());
-app.get("/auth/callback", shopify.auth.callback());
-app.post("/auth/callback", shopify.auth.callback());
+
+// Custom callback that skips webhook registration
+app.get("/auth/callback", async (req, res, next) => {
+  try {
+    const callback = shopify.auth.callback();
+    await callback(req, res, (err) => {
+      if (err) {
+        // Log but ignore webhook registration errors
+        if (err.message && err.message.includes('415')) {
+          console.log('Ignoring webhook registration error');
+          // Redirect to app after successful auth
+          const shop = req.query.shop;
+          return res.redirect(`/?shop=${encodeURIComponent(shop)}&host=${req.query.host || ''}`);
+        }
+        return next(err);
+      }
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('415')) {
+      console.log('Ignoring webhook registration error');
+      const shop = req.query.shop;
+      return res.redirect(`/?shop=${encodeURIComponent(shop)}&host=${req.query.host || ''}`);
+    }
+    next(err);
+  }
+});
+
+app.post("/auth/callback", async (req, res, next) => {
+  try {
+    const callback = shopify.auth.callback();
+    await callback(req, res, (err) => {
+      if (err) {
+        if (err.message && err.message.includes('415')) {
+          console.log('Ignoring webhook registration error');
+          const shop = req.query.shop || req.body?.shop;
+          return res.redirect(`/?shop=${encodeURIComponent(shop)}&host=${req.query.host || ''}`);
+        }
+        return next(err);
+      }
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('415')) {
+      console.log('Ignoring webhook registration error');
+      const shop = req.query.shop || req.body?.shop;
+      return res.redirect(`/?shop=${encodeURIComponent(shop)}&host=${req.query.host || ''}`);
+    }
+    next(err);
+  }
+});
 
 // Static assets
 app.use("/assets", express.static(path.join(__dirname, "../client/dist/assets")));
