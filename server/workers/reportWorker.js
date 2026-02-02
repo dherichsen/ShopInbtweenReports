@@ -20,8 +20,12 @@ const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
 const worker = new Worker(
   "report-generation",
   async (job) => {
+    console.log(`🟠 [WORKER] Job received:`, { jobId: job.id, data: job.data });
     const { jobId, shopId, params } = job.data;
     const { startDate, endDate, financialStatus, fulfillmentStatus, reportType } = params;
+
+    console.log(`🟠 [WORKER] Processing job ${jobId} for shop ${shopId}`);
+    console.log(`🟠 [WORKER] Params:`, { startDate, endDate, financialStatus, fulfillmentStatus, reportType });
 
     try {
       // Update job status to RUNNING
@@ -150,6 +154,22 @@ const worker = new Worker(
     concurrency: 2, // Process 2 jobs at a time
   }
 );
+
+worker.on("ready", () => {
+  console.log("🟠 [WORKER] Worker is ready and listening for jobs on queue: report-generation");
+});
+
+worker.on("active", (job) => {
+  console.log(`🟠 [WORKER] Job ${job.id} is now active`);
+});
+
+worker.on("error", (error) => {
+  console.error("❌ [WORKER] Worker error:", error);
+});
+
+worker.on("failed", (job, error) => {
+  console.error(`❌ [WORKER] Job ${job?.id} failed:`, error);
+});
 
 worker.on("completed", (job) => {
   console.log(`Job ${job.id} completed`);
