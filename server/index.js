@@ -45,6 +45,12 @@ const shopify = shopifyApp({
 const app = express();
 app.use(express.json());
 
+// Allow embedding in Shopify iframe
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
+  next();
+});
+
 // Logging
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} shop=${req.query.shop || 'none'}`);
