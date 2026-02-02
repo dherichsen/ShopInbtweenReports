@@ -172,11 +172,7 @@ worker.on("failed", (job, error) => {
 });
 
 worker.on("completed", (job) => {
-  console.log(`Job ${job.id} completed`);
-});
-
-worker.on("failed", (job, err) => {
-  console.error(`Job ${job.id} failed:`, err.message);
+  console.log(`🟠 [WORKER] Job ${job.id} completed successfully`);
 });
 
 console.log("Report worker started");
