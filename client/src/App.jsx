@@ -13,13 +13,19 @@ import {
   EmptyState,
   Text,
 } from "@shopify/polaris";
-import axios from "axios";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { authenticatedFetch } from "@shopify/app-bridge-utils";
 
-// Configure axios to send cookies with requests
-axios.defaults.withCredentials = true;
+// Custom hook for authenticated fetch
+function useAuthenticatedFetch() {
+  const app = useAppBridge();
+  return authenticatedFetch(app);
+}
 
 function App() {
-  // Default to last 30 days (fix year to current year)
+  const fetch = useAuthenticatedFetch();
+  
+  // Default to last 30 days
   const defaultStartDate = new Date();
   defaultStartDate.setDate(defaultStartDate.getDate() - 30);
   const [startDate, setStartDate] = useState(defaultStartDate);
@@ -57,105 +63,54 @@ function App() {
     };
   }, [jobs.length, isGenerating]); // Re-run if jobs or generating state changes
 
-  // Get shop domain from URL or App Bridge
-  const getShopDomain = () => {
-    // Try to get from URL query params (Shopify embeds apps with ?shop=...)
-    const urlParams = new URLSearchParams(window.location.search);
-    const shopFromUrl = urlParams.get('shop');
-    if (shopFromUrl) {
-      return shopFromUrl;
-    }
-    // Try to get from window.location.hostname (for embedded apps)
-    const hostname = window.location.hostname;
-    if (hostname.includes('myshopify.com')) {
-      return hostname;
-    }
-    // Fallback: try to extract from referrer or other sources
-    return null;
-  };
-
   const loadJobs = async () => {
     try {
-      console.log("🔄 [FRONTEND] loadJobs() called - fetching /api/report-jobs");
-      const shopDomain = getShopDomain();
-      const url = shopDomain ? `/api/report-jobs?shop=${encodeURIComponent(shopDomain)}` : "/api/report-jobs";
-      console.log("🔄 [FRONTEND] Shop domain:", shopDomain);
-      console.log("🔄 [FRONTEND] Request URL:", url);
-      const response = await axios.get(url);
-      console.log("✅ [FRONTEND] loadJobs() response:", response.status, response.data);
-      console.log("✅ [FRONTEND] Jobs count:", response.data?.length || 0);
-      setJobs(response.data);
+      const response = await fetch("/api/report-jobs");
+      if (response.ok) {
+        const data = await response.json();
+        setJobs(data);
+      }
     } catch (err) {
-      console.error("❌ [FRONTEND] Error loading jobs:", err);
-      console.error("❌ [FRONTEND] Error response:", err.response);
+      console.error("Error loading jobs:", err);
     }
   };
 
   const handleGenerateReport = async (reportType = "standard") => {
-    const reportTypeLabel = reportType === "qb" ? "QB Report" : "Report";
-    console.log(`🔵 [FRONTEND] Generate ${reportTypeLabel} button clicked`);
-    console.log("🔵 [FRONTEND] Form data:", {
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      financialStatus,
-      fulfillmentStatus,
-      reportType,
-    });
-    
     setIsGenerating(true);
     setError(null);
 
     try {
-      console.log(`🔵 [FRONTEND] Sending POST request to /api/report-jobs`);
-      const requestData = {
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
-        financialStatus,
-        fulfillmentStatus,
-        reportType,
-      };
-      console.log("🔵 [FRONTEND] Request payload:", JSON.stringify(requestData));
+      const response = await fetch("/api/report-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: startDate.toISOString().split("T")[0],
+          endDate: endDate.toISOString().split("T")[0],
+          financialStatus,
+          fulfillmentStatus,
+          reportType,
+        }),
+      });
       
-      const shopDomain = getShopDomain();
-      const url = shopDomain ? `/api/report-jobs?shop=${encodeURIComponent(shopDomain)}` : "/api/report-jobs";
-      console.log("🔵 [FRONTEND] Shop domain:", shopDomain);
-      console.log("🔵 [FRONTEND] Request URL:", url);
-      const response = await axios.post(url, requestData);
-      
-      console.log(`✅ [FRONTEND] POST request successful!`);
-      console.log("✅ [FRONTEND] Response status:", response.status);
-      console.log("✅ [FRONTEND] Response data:", response.data);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to generate report");
+      }
       
       await loadJobs();
     } catch (err) {
-      console.error(`❌ [FRONTEND] Error creating ${reportTypeLabel}:`);
-      console.error("❌ [FRONTEND] Error object:", err);
-      console.error("❌ [FRONTEND] Error message:", err.message);
-      console.error("❌ [FRONTEND] Error response:", err.response);
-      console.error("❌ [FRONTEND] Error response status:", err.response?.status);
-      console.error("❌ [FRONTEND] Error response data:", err.response?.data);
-      console.error("❌ [FRONTEND] Error response headers:", err.response?.headers);
-      
-      const errorMessage = err.response?.data?.error || err.message || `Failed to generate ${reportTypeLabel}`;
-      console.error("❌ [FRONTEND] Setting error message:", errorMessage);
-      setError(errorMessage);
+      setError(err.message);
     } finally {
-      console.log("🔵 [FRONTEND] Setting isGenerating to false");
       setIsGenerating(false);
     }
   };
 
   const handleDownload = async (jobId, format) => {
     try {
-      const shopDomain = getShopDomain();
-      const url = shopDomain 
-        ? `/api/report-jobs/${jobId}/download.${format}?shop=${encodeURIComponent(shopDomain)}`
-        : `/api/report-jobs/${jobId}/download.${format}`;
-      const response = await axios.get(url, {
-        responseType: "blob",
-      });
+      const response = await fetch(`/api/report-jobs/${jobId}/download.${format}`);
+      const blob = await response.blob();
 
-      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
       const params = JSON.parse(jobs.find(j => j.id === jobId)?.paramsJson || "{}");
