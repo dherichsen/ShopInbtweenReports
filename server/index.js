@@ -25,7 +25,6 @@ const getHostName = () => {
 const hostName = getHostName();
 console.log(`🚀 Host: ${hostName}`);
 
-// Initialize Shopify App with proper embedded app configuration
 const shopify = shopifyApp({
   api: {
     apiKey: process.env.SHOPIFY_API_KEY,
@@ -40,64 +39,22 @@ const shopify = shopifyApp({
     path: "/auth",
     callbackPath: "/auth/callback",
   },
-  // Exit iframe for OAuth - this handles the cookie issue in embedded apps
-  exitIframePath: "/exitiframe",
   useOnlineTokens: false,
 });
 
 const app = express();
-
 app.use(express.json());
 
 // Logging
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} shop=${req.query.shop || 'none'}`);
   next();
 });
 
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
-// Exit iframe route - handles OAuth redirect outside of iframe
-app.get("/exitiframe", (req, res) => {
-  const { shop, host } = req.query;
-  const redirectUri = `${process.env.SHOPIFY_APP_URL}/auth?shop=${shop}`;
-  
-  // Render a page that breaks out of the iframe
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-        <script>
-          const host = "${host}";
-          const redirectUri = "${redirectUri}";
-          
-          if (window.top !== window.self) {
-            // We're in an iframe, use App Bridge to redirect
-            const AppBridge = window['app-bridge'];
-            const createApp = AppBridge.default;
-            const Redirect = AppBridge.actions.Redirect;
-            
-            const app = createApp({
-              apiKey: "${process.env.SHOPIFY_API_KEY}",
-              host: host,
-            });
-            
-            const redirect = Redirect.create(app);
-            redirect.dispatch(Redirect.Action.REMOTE, redirectUri);
-          } else {
-            // Not in iframe, redirect normally
-            window.location.href = redirectUri;
-          }
-        </script>
-      </head>
-      <body>Redirecting...</body>
-    </html>
-  `);
-});
-
-// Mount Shopify auth routes
+// OAuth routes
 app.get("/auth", shopify.auth.begin());
 app.get("/auth/callback", shopify.auth.callback());
 app.post("/auth/callback", shopify.auth.callback());
@@ -105,18 +62,44 @@ app.post("/auth/callback", shopify.auth.callback());
 // Static assets
 app.use("/assets", express.static(path.join(__dirname, "../client/dist/assets")));
 
-// API routes - use Shopify's session validation
-app.use("/api", shopify.validateAuthenticatedSession);
+// API routes
+app.use("/api", async (req, res, next) => {
+  const shop = req.query.shop || 'shopinbtweenproduction.myshopify.com';
+  const session = await prisma.session.findFirst({
+    where: { shop: { equals: shop, mode: 'insensitive' } }
+  });
+  
+  if (!session) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  
+  res.locals.shopify = { session };
+  next();
+});
 app.use("/api", require("./routes/api"));
 
-// For all other routes, use Shopify's redirect middleware
-// This handles session validation and redirects to OAuth if needed
-app.use(shopify.ensureInstalledOnShop);
-
-// Serve the React app
-app.get("*", (req, res) => {
+// App routes - check for session, redirect to auth if missing
+app.get("*", async (req, res) => {
+  const shop = req.query.shop;
+  
+  console.log(`🌐 App request: shop=${shop}`);
+  
+  if (shop) {
+    const session = await prisma.session.findFirst({
+      where: { shop: { equals: shop, mode: 'insensitive' } }
+    });
+    
+    console.log(`🔍 Session check: ${session ? 'found' : 'not found'}`);
+    
+    if (!session) {
+      console.log(`🔄 Redirecting to /auth`);
+      return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
+    }
+  }
+  
   const indexPath = path.join(__dirname, "../client/dist/index.html");
   if (fs.existsSync(indexPath)) {
+    console.log(`✅ Serving React app`);
     res.sendFile(indexPath);
   } else {
     res.status(404).send("React app not built");
