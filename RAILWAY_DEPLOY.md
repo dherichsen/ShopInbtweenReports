@@ -4,6 +4,8 @@
 
 Railway makes deployment super easy! Here's how to deploy your Shopify app:
 
+**Important:** Once deployed to Railway, you **don't need ngrok anymore** for production. Railway provides a permanent public URL. You can still use ngrok for local development if needed, but your production app will use Railway's URL.
+
 ### Step 1: Create Railway Account
 1. Go to https://railway.app/
 2. Sign up with GitHub (recommended)
@@ -95,6 +97,31 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 - **Pro Plan**: $20/month (more resources)
 
 For this app, the **Hobby Plan ($5/month)** should be sufficient!
+
+## Build Time
+
+Railway builds typically take **2-5 minutes**:
+- Installing dependencies: ~30-60 seconds
+- Building client (Vite): ~30-60 seconds  
+- Prisma generate: ~10-20 seconds
+- Starting app: ~10-20 seconds
+
+If it takes longer, check the build logs for errors.
+
+## ngrok vs Railway
+
+**Local Development (ngrok):**
+- Use ngrok when developing locally
+- ngrok URL: `https://your-tunnel.ngrok-free.app`
+- Set `SHOPIFY_APP_URL` to ngrok URL in `.env`
+
+**Production (Railway):**
+- Railway provides a permanent public URL
+- Railway URL: `https://your-app.up.railway.app`
+- Set `SHOPIFY_APP_URL` to Railway URL in Railway environment variables
+- **No ngrok needed** - Railway handles the public URL
+
+**Important:** Update your Shopify Partner Dashboard to use the Railway URL (not ngrok) for production!
 
 ## Troubleshooting
 
