@@ -57,10 +57,31 @@ function App() {
     };
   }, [jobs.length, isGenerating]); // Re-run if jobs or generating state changes
 
+  // Get shop domain from URL or App Bridge
+  const getShopDomain = () => {
+    // Try to get from URL query params (Shopify embeds apps with ?shop=...)
+    const urlParams = new URLSearchParams(window.location.search);
+    const shopFromUrl = urlParams.get('shop');
+    if (shopFromUrl) {
+      return shopFromUrl;
+    }
+    // Try to get from window.location.hostname (for embedded apps)
+    const hostname = window.location.hostname;
+    if (hostname.includes('myshopify.com')) {
+      return hostname;
+    }
+    // Fallback: try to extract from referrer or other sources
+    return null;
+  };
+
   const loadJobs = async () => {
     try {
       console.log("🔄 [FRONTEND] loadJobs() called - fetching /api/report-jobs");
-      const response = await axios.get("/api/report-jobs");
+      const shopDomain = getShopDomain();
+      const url = shopDomain ? `/api/report-jobs?shop=${encodeURIComponent(shopDomain)}` : "/api/report-jobs";
+      console.log("🔄 [FRONTEND] Shop domain:", shopDomain);
+      console.log("🔄 [FRONTEND] Request URL:", url);
+      const response = await axios.get(url);
       console.log("✅ [FRONTEND] loadJobs() response:", response.status, response.data);
       console.log("✅ [FRONTEND] Jobs count:", response.data?.length || 0);
       setJobs(response.data);
@@ -95,7 +116,11 @@ function App() {
       };
       console.log("🔵 [FRONTEND] Request payload:", JSON.stringify(requestData));
       
-      const response = await axios.post("/api/report-jobs", requestData);
+      const shopDomain = getShopDomain();
+      const url = shopDomain ? `/api/report-jobs?shop=${encodeURIComponent(shopDomain)}` : "/api/report-jobs";
+      console.log("🔵 [FRONTEND] Shop domain:", shopDomain);
+      console.log("🔵 [FRONTEND] Request URL:", url);
+      const response = await axios.post(url, requestData);
       
       console.log(`✅ [FRONTEND] POST request successful!`);
       console.log("✅ [FRONTEND] Response status:", response.status);
@@ -122,7 +147,11 @@ function App() {
 
   const handleDownload = async (jobId, format) => {
     try {
-      const response = await axios.get(`/api/report-jobs/${jobId}/download.${format}`, {
+      const shopDomain = getShopDomain();
+      const url = shopDomain 
+        ? `/api/report-jobs/${jobId}/download.${format}?shop=${encodeURIComponent(shopDomain)}`
+        : `/api/report-jobs/${jobId}/download.${format}`;
+      const response = await axios.get(url, {
         responseType: "blob",
       });
 
@@ -276,16 +305,15 @@ function App() {
             </div>
 
             <div style={{ display: "flex", gap: "12px" }}>
-              {false && (
-                <Button
-                  primary
-                  onClick={() => handleGenerateReport("standard")}
-                  loading={isGenerating}
-                  disabled={isGenerating}
-                >
-                  Generate Report
-                </Button>
-              )}
+              <Button
+                primary
+                onClick={() => handleGenerateReport("standard")}
+                loading={isGenerating}
+                disabled={isGenerating}
+                style={{ display: "none" }}
+              >
+                Generate Report
+              </Button>
               <Button
                 onClick={() => handleGenerateReport("qb")}
                 loading={isGenerating}
