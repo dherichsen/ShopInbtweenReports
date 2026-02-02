@@ -58,11 +58,12 @@ const shopifyAppMiddleware = shopifyApp({
   auth: {
     path: "/auth",
     callbackPath: "/auth/callback",
+    afterAuth: async (req, res, next) => {
+      // Skip webhook registration - just continue
+      console.log(`✅ [OAUTH] Auth completed, skipping webhook registration`);
+      next();
+    },
   },
-  webhooks: {
-    path: "/webhooks",
-  },
-  // Disable webhook registration completely
   useOnlineTokens: false,
 });
 
