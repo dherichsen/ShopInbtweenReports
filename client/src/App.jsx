@@ -20,8 +20,28 @@ const getShop = () => {
   return params.get('shop') || 'shopinbtweenproduction.myshopify.com';
 };
 
+// Redirect to Shopify admin if not in iframe
+const redirectToShopifyAdmin = () => {
+  const params = new URLSearchParams(window.location.search);
+  const host = params.get('host');
+  const shop = params.get('shop');
+  
+  if (window.top === window.self && host) {
+    // Not in iframe, redirect to Shopify admin
+    const decodedHost = atob(host);
+    window.location.href = `https://${decodedHost}`;
+    return true;
+  }
+  return false;
+};
+
 function App() {
   const shop = getShop();
+  
+  // Check if we need to redirect
+  useEffect(() => {
+    redirectToShopifyAdmin();
+  }, []);
   
   // Default to last 30 days
   const defaultStartDate = new Date();
