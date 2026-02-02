@@ -62,6 +62,10 @@ const shopifyAppMiddleware = shopifyApp({
     path: "/auth",
     callbackPath: "/auth/callback",
   },
+  webhooks: {
+    // Disable automatic webhook registration since we don't use webhooks
+    // This prevents the 415 error during OAuth
+  },
 });
 
 const expressApp = express();
