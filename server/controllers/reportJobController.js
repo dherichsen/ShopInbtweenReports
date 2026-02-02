@@ -99,11 +99,27 @@ async function list(req, res) {
     const shopId = req.shop.id;
     console.log(`🟣 [CONTROLLER] Fetching jobs for shopId:`, shopId);
     
-    const jobs = await prisma.reportJob.findMany({
-      where: { shopId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+    // Use raw query to check data presence without fetching the data itself
+    const jobs = await prisma.$queryRaw`
+      SELECT 
+        id, 
+        shop_id as "shopId", 
+        status, 
+        params_json as "paramsJson",
+        csv_path as "csvPath",
+        pdf_path as "pdfPath",
+        xlsx_path as "xlsxPath",
+        (csv_data IS NOT NULL) as "hasCsvData",
+        (xlsx_data IS NOT NULL) as "hasXlsxData",
+        (pdf_data IS NOT NULL) as "hasPdfData",
+        error_message as "errorMessage",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM report_jobs
+      WHERE shop_id = ${shopId}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
 
     console.log(`✅ [CONTROLLER] Found ${jobs.length} jobs`);
     res.json(jobs);
@@ -161,14 +177,8 @@ async function downloadCsv(req, res) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    if (job.status !== "COMPLETE" || !job.csvPath) {
+    if (job.status !== "COMPLETE" || !job.csvData) {
       return res.status(400).json({ error: "Report not ready or CSV not generated" });
-    }
-
-    const filePath = path.join(__dirname, "../../", job.csvPath);
-    
-    if (!(await fs.pathExists(filePath))) {
-      return res.status(404).json({ error: "CSV file not found" });
     }
 
     // Determine filename based on report type
@@ -181,12 +191,9 @@ async function downloadCsv(req, res) {
       filename = `internal-vendors-report-${id}.csv`;
     }
 
-    res.download(filePath, filename, (err) => {
-      if (err) {
-        console.error("Error downloading CSV:", err);
-        res.status(500).json({ error: "Failed to download CSV" });
-      }
-    });
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(job.csvData);
   } catch (error) {
     console.error("Error downloading CSV:", error);
     res.status(500).json({ error: "Failed to download CSV" });
@@ -213,22 +220,13 @@ async function downloadPdf(req, res) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    if (job.status !== "COMPLETE" || !job.pdfPath) {
+    if (job.status !== "COMPLETE" || !job.pdfData) {
       return res.status(400).json({ error: "Report not ready or PDF not generated" });
     }
 
-    const filePath = path.join(__dirname, "../../", job.pdfPath);
-    
-    if (!(await fs.pathExists(filePath))) {
-      return res.status(404).json({ error: "PDF file not found" });
-    }
-
-    res.download(filePath, `report-${id}.pdf`, (err) => {
-      if (err) {
-        console.error("Error downloading PDF:", err);
-        res.status(500).json({ error: "Failed to download PDF" });
-      }
-    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="report-${id}.pdf"`);
+    res.send(job.pdfData);
   } catch (error) {
     console.error("Error downloading PDF:", error);
     res.status(500).json({ error: "Failed to download PDF" });
@@ -255,14 +253,8 @@ async function downloadXlsx(req, res) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    if (job.status !== "COMPLETE" || !job.xlsxPath) {
+    if (job.status !== "COMPLETE" || !job.xlsxData) {
       return res.status(400).json({ error: "Report not ready or XLSX not generated" });
-    }
-
-    const filePath = path.join(__dirname, "../../", job.xlsxPath);
-    
-    if (!(await fs.pathExists(filePath))) {
-      return res.status(404).json({ error: "XLSX file not found" });
     }
 
     // Determine filename based on report type
@@ -275,12 +267,9 @@ async function downloadXlsx(req, res) {
       filename = `internal-vendors-report-${id}.xlsx`;
     }
 
-    res.download(filePath, filename, (err) => {
-      if (err) {
-        console.error("Error downloading XLSX:", err);
-        res.status(500).json({ error: "Failed to download XLSX" });
-      }
-    });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(job.xlsxData);
   } catch (error) {
     console.error("Error downloading XLSX:", error);
     res.status(500).json({ error: "Failed to download XLSX" });

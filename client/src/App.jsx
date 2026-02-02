@@ -147,7 +147,6 @@ function App() {
     } else if (reportTypeParam === "internal_vendors") {
       reportType = "Internal Vendors";
     }
-    const isQbReport = reportTypeParam === "qb";
     return [
       new Date(job.createdAt).toLocaleString(),
       `${params.startDate} to ${params.endDate}`,
@@ -155,33 +154,20 @@ function App() {
       getStatusBadge(job.status),
       job.status === "COMPLETE" ? (
         <div style={{ display: "flex", gap: "8px" }}>
-          {reportTypeParam === "internal_vendors" ? (
-            <>
-              <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
-                CSV
-              </Button>
-              <Button size="slim" onClick={() => handleDownload(job.id, "xlsx")}>
-                XLSX
-              </Button>
-            </>
-          ) : isQbReport ? (
-            <>
-              <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
-                CSV
-              </Button>
-              <Button size="slim" onClick={() => handleDownload(job.id, "xlsx")}>
-                XLSX
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
-                CSV
-              </Button>
-              <Button size="slim" onClick={() => handleDownload(job.id, "pdf")}>
-                PDF
-              </Button>
-            </>
+          {job.hasCsvData && (
+            <Button size="slim" onClick={() => handleDownload(job.id, "csv")}>
+              CSV
+            </Button>
+          )}
+          {job.hasXlsxData && (
+            <Button size="slim" onClick={() => handleDownload(job.id, "xlsx")}>
+              XLSX
+            </Button>
+          )}
+          {job.hasPdfData && (
+            <Button size="slim" onClick={() => handleDownload(job.id, "pdf")}>
+              PDF
+            </Button>
           )}
         </div>
       ) : job.status === "FAILED" ? (

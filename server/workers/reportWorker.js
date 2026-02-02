@@ -111,53 +111,67 @@ const worker = new Worker(
       const isQbReport = reportType === "qb";
       const isInternalVendorsReport = reportType === "internal_vendors";
       
-      let relativeCsvPath = null;
-      let relativeXlsxPath = null;
-      let relativePdfPath = null;
+      let csvData = null;
+      let xlsxData = null;
+      let pdfData = null;
+      
+      const fs = require("fs-extra");
       
       if (isQbReport) {
         // QB Report: CSV + XLSX
         console.log("Generating QB CSV...");
         const csvPath = path.join(reportsDir, `${jobId}.csv`);
         await generateQbCsv(orders, csvPath);
-        relativeCsvPath = `reports/${jobId}.csv`;
+        csvData = await fs.readFile(csvPath);
         
         console.log("Generating QB XLSX...");
         const xlsxPath = path.join(reportsDir, `${jobId}.xlsx`);
         await generateQbXlsx(orders, xlsxPath);
-        relativeXlsxPath = `reports/${jobId}.xlsx`;
+        xlsxData = await fs.readFile(xlsxPath);
+        
+        // Clean up temp files
+        await fs.remove(csvPath).catch(() => {});
+        await fs.remove(xlsxPath).catch(() => {});
       } else if (isInternalVendorsReport) {
         // Internal Vendors: CSV + XLSX
         console.log("Generating Internal Vendors CSV...");
         const csvPath = path.join(reportsDir, `${jobId}.csv`);
         await generateInternalVendorsCsv(orders, csvPath);
-        relativeCsvPath = `reports/${jobId}.csv`;
+        csvData = await fs.readFile(csvPath);
         
         console.log("Generating Internal Vendors XLSX...");
         const xlsxPath = path.join(reportsDir, `${jobId}.xlsx`);
         await generateInternalVendorsXlsx(orders, xlsxPath);
-        relativeXlsxPath = `reports/${jobId}.xlsx`;
+        xlsxData = await fs.readFile(xlsxPath);
+        
+        // Clean up temp files
+        await fs.remove(csvPath).catch(() => {});
+        await fs.remove(xlsxPath).catch(() => {});
       } else {
         // Standard Report: CSV + PDF
         console.log("Generating standard CSV...");
         const csvPath = path.join(reportsDir, `${jobId}.csv`);
         await generateCsv(orders, csvPath);
-        relativeCsvPath = `reports/${jobId}.csv`;
+        csvData = await fs.readFile(csvPath);
         
         console.log("Generating PDF...");
         const pdfPath = path.join(reportsDir, `${jobId}.pdf`);
         await generatePdf(orders, shop.shopDomain, startDate, endDate, pdfPath);
-        relativePdfPath = `reports/${jobId}.pdf`;
+        pdfData = await fs.readFile(pdfPath);
+        
+        // Clean up temp files
+        await fs.remove(csvPath).catch(() => {});
+        await fs.remove(pdfPath).catch(() => {});
       }
 
-      // Update job status to COMPLETE
+      // Update job status to COMPLETE - store data in database
       await prisma.reportJob.update({
         where: { id: jobId },
         data: {
           status: "COMPLETE",
-          csvPath: relativeCsvPath,
-          pdfPath: relativePdfPath,
-          xlsxPath: relativeXlsxPath,
+          csvData: csvData,
+          xlsxData: xlsxData,
+          pdfData: pdfData,
         },
       });
 
