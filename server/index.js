@@ -84,9 +84,56 @@ expressApp.use((req, res, next) => {
 
 // Mount Shopify OAuth routes
 // Note: auth.begin and auth.callback are functions that return middleware
-expressApp.get("/auth", shopifyAppMiddleware.auth.begin());
-expressApp.get("/auth/callback", shopifyAppMiddleware.auth.callback());
-expressApp.post("/auth/callback", shopifyAppMiddleware.auth.callback()); // Some OAuth flows use POST
+expressApp.get("/auth", (req, res, next) => {
+  console.log(`🔵 [OAUTH] GET /auth - Starting OAuth flow`);
+  console.log(`🔵 [OAUTH] Query params:`, req.query);
+  shopifyAppMiddleware.auth.begin()(req, res, next);
+});
+
+expressApp.get("/auth/callback", async (req, res, next) => {
+  console.log(`🔵 [OAUTH] GET /auth/callback - OAuth callback received`);
+  console.log(`🔵 [OAUTH] Query params:`, req.query);
+  console.log(`🔵 [OAUTH] Cookies:`, req.cookies);
+  
+  // Wrap the callback to log after it runs
+  const callbackMiddleware = shopifyAppMiddleware.auth.callback();
+  await callbackMiddleware(req, res, async (err) => {
+    if (err) {
+      console.error(`❌ [OAUTH] Callback error:`, err);
+      return next(err);
+    }
+    
+    // Check if session was created
+    const allSessions = await prisma.session.findMany();
+    console.log(`🔵 [OAUTH] Sessions after callback:`, allSessions.map(s => ({ shop: s.shop, id: s.id.substring(0, 20) })));
+    
+    if (!res.headersSent) {
+      next();
+    }
+  });
+});
+
+expressApp.post("/auth/callback", async (req, res, next) => {
+  console.log(`🔵 [OAUTH] POST /auth/callback - OAuth callback received`);
+  console.log(`🔵 [OAUTH] Body:`, req.body);
+  console.log(`🔵 [OAUTH] Cookies:`, req.cookies);
+  
+  const callbackMiddleware = shopifyAppMiddleware.auth.callback();
+  await callbackMiddleware(req, res, async (err) => {
+    if (err) {
+      console.error(`❌ [OAUTH] Callback error:`, err);
+      return next(err);
+    }
+    
+    // Check if session was created
+    const allSessions = await prisma.session.findMany();
+    console.log(`🔵 [OAUTH] Sessions after callback:`, allSessions.map(s => ({ shop: s.shop, id: s.id.substring(0, 20) })));
+    
+    if (!res.headersSent) {
+      next();
+    }
+  });
+});
 
 // API Routes - Manually handle session to avoid hanging
 expressApp.use("/api", async (req, res, next) => {
