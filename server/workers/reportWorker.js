@@ -10,9 +10,21 @@ const { generateCsv, generateQbCsv, generateQbXlsx, generateInternalVendorsCsv, 
 const { generatePdf } = require("../services/pdfGenerator");
 
 const prisma = new PrismaClient();
+console.log("🟠 [WORKER] Prisma client created");
+
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null, // Required for BullMQ
 });
+
+redis.on("connect", () => {
+  console.log("🟠 [WORKER] Redis connected successfully");
+});
+
+redis.on("error", (err) => {
+  console.error("❌ [WORKER] Redis connection error:", err);
+});
+
+console.log("🟠 [WORKER] Redis client created, connecting to:", process.env.REDIS_URL ? "REDIS_URL from env" : "localhost:6379");
 
 /**
  * BullMQ worker for processing report generation jobs
