@@ -245,15 +245,6 @@ function App() {
 
             <div style={{ display: "flex", gap: "12px" }}>
               <Button
-                primary
-                onClick={() => handleGenerateReport("standard")}
-                loading={isGenerating}
-                disabled={isGenerating}
-                style={{ display: "none" }}
-              >
-                Generate Report
-              </Button>
-              <Button
                 onClick={() => handleGenerateReport("qb")}
                 loading={isGenerating}
                 disabled={isGenerating}
