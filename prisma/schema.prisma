@@ -11,7 +11,7 @@ datasource db {
 }
 
 model Session {
-  id          String   @id @default(uuid())
+  id          String   @id
   shop        String
   state       String
   isOnline    Boolean  @default(false)

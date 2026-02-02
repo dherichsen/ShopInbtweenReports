@@ -55,6 +55,24 @@ const worker = new Worker(
         throw new Error("Shop not found");
       }
 
+      // Get access token from Session table (more reliable than Shop table)
+      const session = await prisma.session.findFirst({
+        where: {
+          shop: {
+            equals: shop.shopDomain,
+            mode: 'insensitive'
+          }
+        }
+      });
+
+      if (!session || !session.accessToken) {
+        throw new Error(`No valid session found for shop: ${shop.shopDomain}. Please reinstall the app.`);
+      }
+
+      const accessToken = session.accessToken;
+      console.log(`🟣 [WORKER] Using access token from session for ${shop.shopDomain}`);
+      console.log(`🟣 [WORKER] Token length: ${accessToken.length}, prefix: ${accessToken.substring(0, 6)}...`);
+
       // Fetch orders from Shopify
       console.log(`🟣 [WORKER] Fetching orders for shop ${shop.shopDomain}...`);
       console.log(`🟣 [WORKER] Parameters:`, {
@@ -65,7 +83,7 @@ const worker = new Worker(
       });
       
       const orders = await fetchOrders(
-        shop.accessToken,
+        accessToken,
         shop.shopDomain,
         startDate,
         endDate,
