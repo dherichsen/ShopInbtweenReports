@@ -486,7 +486,7 @@ function formatInternalVendorsRows(orders) {
         qty: lineItem.quantity,
         product_service: productService,
         empty: "", // Empty column
-        customer_note: "", // CUSTOMER NOTE column
+        vendor: vendor, // Vendor column
       });
     }
   }
@@ -545,7 +545,7 @@ async function generateInternalVendorsCsv(orders, outputPath) {
       { id: "qty", title: "Qty" },
       { id: "product_service", title: "Product/Service" },
       { id: "empty", title: "" },
-      { id: "customer_note", title: "CUSTOMER NOTE" },
+      { id: "vendor", title: "Vendor" },
     ],
     encoding: "utf8",
   });
@@ -590,7 +590,7 @@ async function generateInternalVendorsXlsx(orders, outputPath) {
     { header: "Qty", key: "qty", width: 8 },
     { header: "Product/Service", key: "product_service", width: 50 },
     { header: "", key: "empty", width: 10 },
-    { header: "CUSTOMER NOTE", key: "customer_note", width: 30 },
+    { header: "Vendor", key: "vendor", width: 20 },
   ];
 
   // Style the header row
@@ -618,7 +618,7 @@ async function generateInternalVendorsXlsx(orders, outputPath) {
     worksheetRow.getCell(5).alignment = { vertical: "top", horizontal: "center" }; // Num
     worksheetRow.getCell(7).alignment = { vertical: "top", horizontal: "right" }; // Qty
     worksheetRow.getCell(9).alignment = { vertical: "top" }; // Empty
-    worksheetRow.getCell(10).alignment = { vertical: "top" }; // CUSTOMER NOTE
+    worksheetRow.getCell(10).alignment = { vertical: "top" }; // Vendor
   });
 
   // Auto-fit row heights (with minimum height)
