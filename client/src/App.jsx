@@ -13,17 +13,15 @@ import {
   EmptyState,
   Text,
 } from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticatedFetch } from "@shopify/app-bridge-utils";
 
-// Custom hook for authenticated fetch
-function useAuthenticatedFetch() {
-  const app = useAppBridge();
-  return authenticatedFetch(app);
-}
+// Get shop from URL
+const getShop = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('shop') || 'shopinbtweenproduction.myshopify.com';
+};
 
 function App() {
-  const fetch = useAuthenticatedFetch();
+  const shop = getShop();
   
   // Default to last 30 days
   const defaultStartDate = new Date();
@@ -65,7 +63,7 @@ function App() {
 
   const loadJobs = async () => {
     try {
-      const response = await fetch("/api/report-jobs");
+      const response = await window.fetch(`/api/report-jobs?shop=${encodeURIComponent(shop)}`);
       if (response.ok) {
         const data = await response.json();
         setJobs(data);
@@ -80,7 +78,7 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch("/api/report-jobs", {
+      const response = await window.fetch(`/api/report-jobs?shop=${encodeURIComponent(shop)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,7 +105,7 @@ function App() {
 
   const handleDownload = async (jobId, format) => {
     try {
-      const response = await fetch(`/api/report-jobs/${jobId}/download.${format}`);
+      const response = await window.fetch(`/api/report-jobs/${jobId}/download.${format}?shop=${encodeURIComponent(shop)}`);
       const blob = await response.blob();
 
       const blobUrl = window.URL.createObjectURL(blob);
