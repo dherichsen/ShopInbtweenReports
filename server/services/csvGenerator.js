@@ -48,7 +48,7 @@ async function generateCsv(orders, outputPath) {
       if (lineItem.customAttributes && lineItem.customAttributes.length > 0) {
         console.log(`🔵 ORDERS - CSV Generator: Line item ${lineItem.title} has ${lineItem.customAttributes.length} custom attributes:`, 
           JSON.stringify(lineItem.customAttributes, null, 2));
-        const memo = formatMemo(lineItem.customAttributes);
+        const memo = formatMemo(lineItem.customAttributes, lineItem.variantTitle);
         console.log(`🔵 ORDERS - CSV Generator: Formatted memo (${memo.length} chars):`, memo.substring(0, 200));
       }
       
@@ -66,7 +66,7 @@ async function generateCsv(orders, outputPath) {
         unit_price: unitPrice.toFixed(2),
         line_total: lineTotal.toFixed(2),
         currency: order.currencyCode,
-        memo: formatMemo(lineItem.customAttributes),
+        memo: formatMemo(lineItem.customAttributes, lineItem.variantTitle),
         line_item_id: lineItem.id,
       });
     }
@@ -149,7 +149,7 @@ function formatQbReportRows(orders) {
     
     for (const lineItemEdge of order.lineItems.edges) {
       const lineItem = lineItemEdge.node;
-      const memo = formatMemo(lineItem.customAttributes);
+      const memo = formatMemo(lineItem.customAttributes, lineItem.variantTitle);
       
       rows.push({
         date: orderDateStr,
@@ -468,7 +468,7 @@ function formatInternalVendorsRows(orders) {
     for (const lineItemEdge of order.lineItems.edges) {
       const lineItem = lineItemEdge.node;
       const vendor = lineItem.vendor || "";
-      const memo = formatMemo(lineItem.customAttributes);
+      const memo = formatMemo(lineItem.customAttributes, lineItem.variantTitle);
       
       // Memo/Description: "Vendor:Product" format
       const memoDescription = vendor ? `${vendor}:${lineItem.title}` : lineItem.title;

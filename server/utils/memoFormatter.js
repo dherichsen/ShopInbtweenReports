@@ -1,23 +1,42 @@
 /**
  * Format line-item custom attributes into a readable memo string
+ * @param {Array} customAttributes - Array of custom attribute objects
+ * @param {string} variantTitle - Optional variant title to prepend
  */
-function formatMemo(customAttributes) {
+function formatMemo(customAttributes, variantTitle) {
+  const parts = [];
+  
+  // Prepend variant title if it exists and is not empty
+  if (variantTitle && variantTitle.trim() !== "") {
+    parts.push(`Variant: ${variantTitle.trim()}`);
+  }
+  
   if (!customAttributes || customAttributes.length === 0) {
     console.log(`🔵 ORDERS - MemoFormatter: No custom attributes provided`);
-    return "";
+    return parts.join("\n");
   }
 
   console.log(`🔵 ORDERS - MemoFormatter: Processing ${customAttributes.length} custom attributes`);
   console.log(`🔵 ORDERS - MemoFormatter: Raw attributes:`, JSON.stringify(customAttributes, null, 2));
 
-  // Filter out empty values and normalize
+  // Filter out empty values, has_gpo entries, and normalize
   const attributes = customAttributes
     .filter(attr => {
       const hasValue = attr && attr.value && attr.value.trim() !== "";
       if (!hasValue) {
         console.log(`⚠️ ORDERS - MemoFormatter: Filtering out empty attribute:`, attr.key);
+        return false;
       }
-      return hasValue;
+      // Filter out has_gpo entries
+      if (attr.key && attr.key.toLowerCase().includes("has_gpo")) {
+        console.log(`⚠️ ORDERS - MemoFormatter: Filtering out has_gpo attribute:`, attr.key);
+        return false;
+      }
+      if (attr.value && attr.value.toLowerCase().includes("has_gpo")) {
+        console.log(`⚠️ ORDERS - MemoFormatter: Filtering out attribute with has_gpo value:`, attr.key);
+        return false;
+      }
+      return true;
     })
     .map(attr => {
       const normalized = {
@@ -30,7 +49,7 @@ function formatMemo(customAttributes) {
 
   if (attributes.length === 0) {
     console.warn(`⚠️ ORDERS - MemoFormatter: All attributes were filtered out!`);
-    return "";
+    return parts.join("\n");
   }
   
   console.log(`✅ ORDERS - MemoFormatter: ${attributes.length} attributes after filtering`);
@@ -64,8 +83,12 @@ function formatMemo(customAttributes) {
     return a.key.localeCompare(b.key);
   });
 
+  // Add formatted attributes to parts
+  const attributeLines = attributes.map(attr => `${attr.key}: ${attr.value}`);
+  parts.push(...attributeLines);
+  
   // Format as multi-line string
-  const memo = attributes.map(attr => `${attr.key}: ${attr.value}`).join("\n");
+  const memo = parts.join("\n");
   console.log(`✅ ORDERS - MemoFormatter: Final memo (${memo.length} chars, ${attributes.length} attributes):`);
   console.log(`✅ ORDERS - MemoFormatter: Full memo content:\n${memo}`);
   console.log(`✅ ORDERS - MemoFormatter: Attribute keys in memo:`, attributes.map(a => a.key).join(", "));
