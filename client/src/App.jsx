@@ -196,13 +196,13 @@ function App() {
               <DatePicker
                 month={startDate.getMonth()}
                 year={startDate.getFullYear()}
-                selected={startDate}
+                selected={{ start: startDate, end: startDate }}
                 onMonthChange={(month, year) => {
                   const newDate = new Date(startDate);
                   newDate.setFullYear(year, month);
                   setStartDate(newDate);
                 }}
-                onChange={setStartDate}
+                onChange={(range) => setStartDate(range.start)}
               />
             </div>
 
@@ -213,13 +213,13 @@ function App() {
               <DatePicker
                 month={endDate.getMonth()}
                 year={endDate.getFullYear()}
-                selected={endDate}
+                selected={{ start: endDate, end: endDate }}
                 onMonthChange={(month, year) => {
                   const newDate = new Date(endDate);
                   newDate.setFullYear(year, month);
                   setEndDate(newDate);
                 }}
-                onChange={setEndDate}
+                onChange={(range) => setEndDate(range.start)}
               />
             </div>
 
