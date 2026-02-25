@@ -193,6 +193,9 @@ function App() {
               <Text as="p" variant="bodyMd" fontWeight="semibold">
                 Start Date
               </Text>
+              <Text as="p" variant="bodySm" tone="subdued" style={{ marginBottom: "8px" }}>
+                {new Date(startDate.getFullYear(), startDate.getMonth()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </Text>
               <DatePicker
                 month={startDate.getMonth()}
                 year={startDate.getFullYear()}
@@ -209,6 +212,9 @@ function App() {
             <div style={{ marginBottom: "20px" }}>
               <Text as="p" variant="bodyMd" fontWeight="semibold">
                 End Date
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued" style={{ marginBottom: "8px" }}>
+                {new Date(endDate.getFullYear(), endDate.getMonth()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </Text>
               <DatePicker
                 month={endDate.getMonth()}

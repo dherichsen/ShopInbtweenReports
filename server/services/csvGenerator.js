@@ -44,11 +44,14 @@ async function generateCsv(orders, outputPath) {
       const unitPrice = parseFloat(lineItem.originalUnitPriceSet?.shopMoney?.amount || "0");
       const lineTotal = parseFloat(lineItem.discountedTotalSet?.shopMoney?.amount || "0");
       
+      // Get selectedOptions from variant (if available)
+      const selectedOptions = lineItem.variant?.selectedOptions || [];
+      
       // Log custom attributes for debugging
       if (lineItem.customAttributes && lineItem.customAttributes.length > 0) {
         console.log(`🔵 ORDERS - CSV Generator: Line item ${lineItem.title} has ${lineItem.customAttributes.length} custom attributes:`, 
           JSON.stringify(lineItem.customAttributes, null, 2));
-        const memo = formatMemo(lineItem.customAttributes, lineItem.variantTitle);
+        const memo = formatMemo(lineItem.customAttributes, selectedOptions);
         console.log(`🔵 ORDERS - CSV Generator: Formatted memo (${memo.length} chars):`, memo.substring(0, 200));
       }
       
@@ -66,7 +69,7 @@ async function generateCsv(orders, outputPath) {
         unit_price: unitPrice.toFixed(2),
         line_total: lineTotal.toFixed(2),
         currency: order.currencyCode,
-        memo: formatMemo(lineItem.customAttributes, lineItem.variantTitle),
+        memo: formatMemo(lineItem.customAttributes, selectedOptions),
         line_item_id: lineItem.id,
       });
     }
@@ -149,7 +152,8 @@ function formatQbReportRows(orders) {
     
     for (const lineItemEdge of order.lineItems.edges) {
       const lineItem = lineItemEdge.node;
-      const memo = formatMemo(lineItem.customAttributes, lineItem.variantTitle);
+      const selectedOptions = lineItem.variant?.selectedOptions || [];
+      const memo = formatMemo(lineItem.customAttributes, selectedOptions);
       
       rows.push({
         date: orderDateStr,
@@ -468,13 +472,14 @@ function formatInternalVendorsRows(orders) {
     for (const lineItemEdge of order.lineItems.edges) {
       const lineItem = lineItemEdge.node;
       const vendor = lineItem.vendor || "";
-      const memo = formatMemo(lineItem.customAttributes, lineItem.variantTitle);
+      const selectedOptions = lineItem.variant?.selectedOptions || [];
+      const memo = formatMemo(lineItem.customAttributes, selectedOptions);
       
       // Memo/Description: "Vendor:Product" format
       const memoDescription = vendor ? `${vendor}:${lineItem.title}` : lineItem.title;
       
-      // Product/Service: Product name + customization details
-      const productService = lineItem.title + (memo ? "\n" + memo : "") + (lineItem.sku ? "\nSKU: " + lineItem.sku : "");
+      // Product/Service: Product name + customization details (SKU moved to its own column)
+      const productService = lineItem.title + (memo ? "\n" + memo : "");
       
       rows.push({
         address: address,
@@ -485,7 +490,7 @@ function formatInternalVendorsRows(orders) {
         memo_description: memoDescription,
         qty: lineItem.quantity,
         product_service: productService,
-        empty: "", // Empty column
+        sku: lineItem.sku || "", // SKU in its own column
         vendor: vendor, // Vendor column
       });
     }
@@ -544,7 +549,7 @@ async function generateInternalVendorsCsv(orders, outputPath) {
       { id: "memo_description", title: "Memo/Description" },
       { id: "qty", title: "Qty" },
       { id: "product_service", title: "Product/Service" },
-      { id: "empty", title: "" },
+      { id: "sku", title: "SKU" },
       { id: "vendor", title: "Vendor" },
     ],
     encoding: "utf8",
@@ -589,7 +594,7 @@ async function generateInternalVendorsXlsx(orders, outputPath) {
     { header: "Memo/Description", key: "memo_description", width: 30 },
     { header: "Qty", key: "qty", width: 8 },
     { header: "Product/Service", key: "product_service", width: 50 },
-    { header: "", key: "empty", width: 10 },
+    { header: "SKU", key: "sku", width: 15 },
     { header: "Vendor", key: "vendor", width: 20 },
   ];
 
@@ -617,7 +622,7 @@ async function generateInternalVendorsXlsx(orders, outputPath) {
     worksheetRow.getCell(4).alignment = { vertical: "top" }; // Customer
     worksheetRow.getCell(5).alignment = { vertical: "top", horizontal: "center" }; // Num
     worksheetRow.getCell(7).alignment = { vertical: "top", horizontal: "right" }; // Qty
-    worksheetRow.getCell(9).alignment = { vertical: "top" }; // Empty
+    worksheetRow.getCell(9).alignment = { vertical: "top" }; // SKU
     worksheetRow.getCell(10).alignment = { vertical: "top" }; // Vendor
   });
 

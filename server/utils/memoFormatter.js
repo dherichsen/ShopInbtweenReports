@@ -1,14 +1,20 @@
 /**
  * Format line-item custom attributes into a readable memo string
  * @param {Array} customAttributes - Array of custom attribute objects
- * @param {string} variantTitle - Optional variant title to prepend
+ * @param {Array} selectedOptions - Optional variant selected options (array of {name, value})
  */
-function formatMemo(customAttributes, variantTitle) {
+function formatMemo(customAttributes, selectedOptions) {
   const parts = [];
   
-  // Prepend variant title if it exists and is not empty
-  if (variantTitle && variantTitle.trim() !== "") {
-    parts.push(`Variant: ${variantTitle.trim()}`);
+  // Add variant selected options first (each on its own line with title)
+  if (selectedOptions && Array.isArray(selectedOptions) && selectedOptions.length > 0) {
+    for (const option of selectedOptions) {
+      if (option.name && option.value && option.value.trim() !== "" && option.value !== "Default Title") {
+        const fixedName = fixSpacing(option.name);
+        const fixedValue = fixSpacing(option.value);
+        parts.push(`${fixedName}: ${fixedValue}`);
+      }
+    }
   }
   
   if (!customAttributes || customAttributes.length === 0) {
@@ -20,6 +26,7 @@ function formatMemo(customAttributes, variantTitle) {
   console.log(`🔵 ORDERS - MemoFormatter: Raw attributes:`, JSON.stringify(customAttributes, null, 2));
 
   // Filter out empty values, has_gpo entries, and normalize
+  // PRESERVE ORIGINAL ORDER - no sorting
   const attributes = customAttributes
     .filter(attr => {
       const hasValue = attr && attr.value && attr.value.trim() !== "";
@@ -40,8 +47,8 @@ function formatMemo(customAttributes, variantTitle) {
     })
     .map(attr => {
       const normalized = {
-        key: normalizeKey(attr.key),
-        value: normalizeValue(attr.value),
+        key: fixSpacing(normalizeKey(attr.key)),
+        value: fixSpacing(normalizeValue(attr.value)),
       };
       console.log(`🔵 ORDERS - MemoFormatter: Normalized "${attr.key}" -> "${normalized.key}" = "${normalized.value}"`);
       return normalized;
@@ -54,36 +61,7 @@ function formatMemo(customAttributes, variantTitle) {
   
   console.log(`✅ ORDERS - MemoFormatter: ${attributes.length} attributes after filtering`);
 
-  // Sort: known personalization keys first, then alphabetically
-  const personalizationKeys = [
-    "first name",
-    "last name",
-    "background",
-    "font",
-    "outline style",
-    "font color",
-    "text",
-    "message",
-    "customization",
-  ];
-
-  attributes.sort((a, b) => {
-    const aKey = a.key.toLowerCase();
-    const bKey = b.key.toLowerCase();
-    
-    const aIndex = personalizationKeys.findIndex(pk => aKey.includes(pk));
-    const bIndex = personalizationKeys.findIndex(pk => bKey.includes(pk));
-    
-    if (aIndex !== -1 && bIndex !== -1) {
-      return aIndex - bIndex;
-    }
-    if (aIndex !== -1) return -1;
-    if (bIndex !== -1) return 1;
-    
-    return a.key.localeCompare(b.key);
-  });
-
-  // Add formatted attributes to parts
+  // Add formatted attributes to parts (preserving original order)
   const attributeLines = attributes.map(attr => `${attr.key}: ${attr.value}`);
   parts.push(...attributeLines);
   
@@ -93,6 +71,23 @@ function formatMemo(customAttributes, variantTitle) {
   console.log(`✅ ORDERS - MemoFormatter: Full memo content:\n${memo}`);
   console.log(`✅ ORDERS - MemoFormatter: Attribute keys in memo:`, attributes.map(a => a.key).join(", "));
   return memo;
+}
+
+/**
+ * Fix spacing issues like "I N S I D E" -> "INSIDE"
+ * Detects patterns where single characters are separated by single spaces
+ */
+function fixSpacing(text) {
+  if (!text || typeof text !== "string") return text;
+  
+  // Pattern: single letters separated by single spaces (e.g., "I N S I D E")
+  // This regex matches 2+ single uppercase letters separated by single spaces
+  const spacedLettersPattern = /\b([A-Z](?:\s[A-Z]){2,})\b/g;
+  
+  return text.replace(spacedLettersPattern, (match) => {
+    // Remove the spaces between the letters
+    return match.replace(/\s/g, "");
+  });
 }
 
 /**

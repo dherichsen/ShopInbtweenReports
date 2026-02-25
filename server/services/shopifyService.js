@@ -59,6 +59,12 @@ const ORDERS_QUERY = `
                   key
                   value
                 }
+                variant {
+                  selectedOptions {
+                    name
+                    value
+                  }
+                }
               }
             }
           }
